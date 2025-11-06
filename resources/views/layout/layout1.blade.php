@@ -8,11 +8,14 @@
 
     <title>@yield('title', config('app.name', 'Laravel'))</title>
 
-    <!-- Tailwind via CDN (for simple setup) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css" />
     <!-- Optional app CSS (if you compile Tailwind locally) -->
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
 
     @yield('content_headscript')
 </head>
@@ -29,9 +32,25 @@
                 </div>
 
                 <div class="hidden md:flex md:items-center md:space-x-6">
-                    <a class="text-sm hover:text-sky-600" href="{{ url('/') }}">Home</a>
+                    <a class="text-sm hover:text-sky-600" href="{{
+    Auth::check() ? url('/dashboard') : url('/')
+                        }}">Home</a>
                     <a class="text-sm hover:text-sky-600" href="{{ url('/about') }}">About</a>
-                    <a class="text-sm hover:text-sky-600" href="{{ url('/products') }}">Products</a>
+                    {{-- <a class="text-sm hover:text-sky-600" href="{{ url('/products') }}">Products</a> --}}
+                    <details class="relative">
+                        <summary class="list-none cursor-pointer text-sm flex items-center gap-2 hover:text-sky-600">
+                            Products
+                            <svg class="w-3 h-3 ml-1 text-slate-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </summary>
+
+                        <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-sm z-20">
+                            <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/products') }}">Master Barang</a>
+                            <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/stock-product') }}">Stok Barang</a>
+                            <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/transaction-history') }}">Riwayat Transaksi</a>
+                        </div>
+                    </details>
                 </div>
 
                 <div class="flex items-center gap-3">
@@ -53,11 +72,8 @@
                                     <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                         Logout
                                     </a>
-                                    <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                                        Logout
-                                    </a>
 
-                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
                                         @csrf
                                     </form>
                                 </div>
@@ -71,6 +87,11 @@
 
     <main class="py-4">
         <div class="container mx-auto">
+            {{-- button back --}}
+            <a href="javascript:history.back()" class="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back
+            </a>
             @yield('content')
         </div>
     </main>
@@ -83,6 +104,15 @@
 
     <!-- Bootstrap 5 JS (bundle includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- jQuery + Bootstrap + DataTables -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/2.3.4/js/dataTables.js"></script>
+    <script src="https://cdn.datatables.net/autofill/2.7.1/js/dataTables.autoFill.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+
 
     <script src="{{ asset('js/app.js') }}"></script>
     @yield('content_tailscript')

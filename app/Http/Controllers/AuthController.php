@@ -55,9 +55,9 @@ class AuthController extends Controller
         DB::beginTransaction();
         try {
             $user = User::create([
-                'name' => $credentials['name'],
-                'email' => $credentials['email'],
-                'password' => bcrypt($credentials['password']),
+                'name' =>  trim(strtoupper( $credentials['name'])),
+                'email' => trim($credentials['email']),
+                'password' => bcrypt(trim($credentials['password'])),
             ]);
             DB::commit();
         } catch (\Throwable $e) {

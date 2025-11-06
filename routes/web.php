@@ -22,4 +22,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
         return view('dashboard');
     });
+
+    // product routes
+    Route::resource('products', App\Http\Controllers\ProductController::class);
+    Route::prefix('products')->group(function () {
+        Route::post('data', [App\Http\Controllers\ProductController::class, 'data'])->name('products.data');
+    });
+
 });
