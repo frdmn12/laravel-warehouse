@@ -47,7 +47,7 @@
 
                         <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-sm z-20">
                             <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/products') }}">Master Barang</a>
-                            <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/stock-product') }}">Stok Barang</a>
+                            <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/stock-products') }}">Stok Barang</a>
                             <a class="block px-3 py-2 text-sm hover:bg-slate-50" href="{{ url('/transaction-history') }}">Riwayat Transaksi</a>
                         </div>
                     </details>
@@ -87,11 +87,6 @@
 
     <main class="py-4">
         <div class="container mx-auto">
-            {{-- button back --}}
-            <a href="javascript:history.back()" class="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-                <i class="fas fa-arrow-left mr-2"></i>
-                Back
-            </a>
             @yield('content')
         </div>
     </main>

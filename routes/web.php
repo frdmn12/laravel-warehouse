@@ -29,4 +29,16 @@ Route::middleware('auth')->group(function () {
         Route::post('data', [App\Http\Controllers\ProductController::class, 'data'])->name('products.data');
     });
 
+    // stock product routes
+    Route::resource('stock-products', App\Http\Controllers\StockProductController::class);
+    Route::prefix('stock-products')->group(function () {
+        Route::post('data', [App\Http\Controllers\StockProductController::class, 'data'])->name('stock-products.data');
+    });
+
+    // transaction history routes
+    Route::resource('transaction-history', App\Http\Controllers\TransactionHistoryController::class);
+    Route::prefix('transaction-history')->group(function () {
+        Route::post('data', [App\Http\Controllers\TransactionHistoryController::class, 'data'])->name('transaction-history.data');
+        Route::post('generateBatch', [App\Http\Controllers\TransactionHistoryController::class, 'generateBatch'])->name('transaction-history.generateBatch');
+    });
 });

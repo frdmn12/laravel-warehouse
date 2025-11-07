@@ -3,6 +3,11 @@
 @section('title', 'Edit Product')
 @section('content')
     <section class="max-w-7xl mx-auto p-6 shadow-md rounded-lg bg-white">
+        {{-- button back --}}
+        <a href="javascript:history.back()" class="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back
+        </a>
         <h1 class="text-3xl font-bold mb-6">Edit Product</h1>
         <form method="POST" id="form-data">
             @csrf
@@ -11,12 +16,12 @@
                 <div>
                     <label for="product_name" class="block text-sm font-medium text-gray-700 mb-1">Nama</label>
                     <input type="text" id="product_name" name="product_name" class="w-full text-sm border border-gray-300 rounded-md p-2"
-                           value="{{ old('product_name', $product->name ?? '') }}" placeholder="">
+                        value="{{ old('product_name', $product->name ?? '') }}" placeholder="">
                 </div>
                 <div>
                     <label for="product_code" class="block text-sm font-medium text-gray-700 mb-1">Kode Produk</label>
                     <input type="text" id="product_code" name="product_code" class="w-full text-sm border border-gray-300 rounded-md p-2"
-                           value="{{ old('product_code', $product->product_code ?? '') }}" placeholder="">
+                        value="{{ old('product_code', $product->product_code ?? '') }}" placeholder="">
                 </div>
             </div>
             <div class="flex items-center gap-2">
