@@ -69,12 +69,12 @@ class TransactionHistoryController extends Controller
 
                 return $txt;
             })
-            ->editColumn('hour', function ($item) {
-                return date('H:i:s', strtotime($item->date));
-            })
-            ->editColumn('date_of_transaction', function ($item) {
-                return \Carbon\Carbon::parse($item->date_of_transaction)->format('j F Y');
-            })
+                ->editColumn('hour', function ($item) {
+                    return date('H:i:s', strtotime($item->date));
+                })
+                ->editColumn('date_of_transaction', function ($item) {
+                    return \Carbon\Carbon::parse($item->date_of_transaction)->format('j F Y');
+                })
             ;
 
             return $datatable->make(true);
@@ -93,10 +93,9 @@ class TransactionHistoryController extends Controller
     {
         $transactionType = $request->input('transaction_type', 'in'); // 'in' or 'out'
         $date = $request->input('date', date('Y-m-d'));
-        // Determine prefix based on transaction type ('in' -> TAMBAH, 'out' -> KURANG)
-        $prefix = strtolower($transactionType) === 'out' ? 'KURANG' : 'TAMBAH';
+        // Use uppercase prefix to match existing DB values like "TAMBAH-20251107-001"
+        $prefix = strtoupper($transactionType) === 'OUT' ? 'KURANG' : 'TAMBAH';
 
-        // Normalize date part (YYYYMMDD) to reset counter each day
         try {
             $dateObj = new \DateTime($date);
             $datePart = $dateObj->format('Ymd');
@@ -104,14 +103,14 @@ class TransactionHistoryController extends Controller
             $datePart = date('Ymd');
         }
 
-        // Generate a new batch code based on the date and an incremental number (3 digits)
-        $like = $prefix . $datePart . '%';
+        $like = $prefix . '-' . $datePart . '-%';
 
+        // Order by numeric suffix to get the highest increment for that date
         $lastBatch = TransactionHistory::where('batch', 'like', $like)
-            ->orderBy('batch', 'desc')
+            ->orderByRaw("CAST(RIGHT(batch, 3) AS UNSIGNED) DESC")
             ->first();
 
-        if ($lastBatch && preg_match('/(\d{3})$/', $lastBatch->batch, $matches)) {
+        if ($lastBatch && preg_match('/-(\d{3})$/', $lastBatch->batch, $matches)) {
             $lastIncrement = (int)$matches[1];
             $newIncrement = str_pad($lastIncrement + 1, 3, '0', STR_PAD_LEFT);
         } else {

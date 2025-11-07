@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Products;
 use App\Models\StockProduct;
 use App\Models\TransactionHistory;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -98,104 +99,122 @@ class StockProductController extends Controller
         return view('stock_product.create', compact('products', 'locations'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+  
 public function store(Request $request)
 {
-    $validated = $request->validate([
-        'transaction_type' => 'required|in:MASUK,KELUAR',
-        'batch' => 'required|string',
-        'product_id' => 'required|integer',
-        'stock' => 'required|integer|min:1',
-        'date_of_entry' => 'required|date',
-        'location_id' => 'required|integer',
-    ]);
+    // validasi awal (akan dikembalikan sebagai JSON jika gagal)
+    try {
+        $validated = $request->validate([
+            'transaction_type' => 'required|in:MASUK,KELUAR',
+            'batch' => 'required|string',
+            'product_id' => 'required|integer',
+            'stock' => 'required|integer|min:1',
+            'date_of_entry' => 'required|date',
+            'location_id' => 'required|integer',
+        ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validasi gagal',
+            'errors' => $e->errors(),
+        ], 422);
+    }
 
     $userId = Auth::id();
+    $productId = $validated['product_id'];
+    $locationId = $validated['location_id'];
+    $dateOfEntry = Carbon::parse($validated['date_of_entry'])->startOfDay();
+    $qty = (int) $validated['stock'];
+    $type = $validated['transaction_type'];
 
     DB::beginTransaction();
     try {
-        $product_id = $validated['product_id'];
-        $location_id = $validated['location_id'];
-        $date_of_entry = $validated['date_of_entry'];
-        $qty = $validated['stock'];
-        $type = $validated['transaction_type'];
+        // ================
+        // VALIDASI TANGGAL DIBANDINGKAN TRANSACTION_HISTORY
+        // ================
+        $latestTxnDate = TransactionHistory::where('product_id', $productId)
+            ->where('location_id', $locationId)
+            ->max('date_of_transaction'); // may be null
 
-        // ==========================
-        // 🔍 VALIDASI 1: CEK TANGGAL TRANSAKSI
-        // ==========================
-        $latestEntry = StockProduct::where('product_id', $product_id)
-            ->where('location_id', $location_id)
-            ->max('date_of_entry');
-
-        if ($latestEntry && $date_of_entry < $latestEntry) {
-            throw new \Exception("Transaksi ditolak: tanggal transaksi tidak boleh lebih kecil dari tanggal masuk terakhir ({$latestEntry}).");
+        if ($latestTxnDate) {
+            $latestTxnDate = Carbon::parse($latestTxnDate)->startOfDay();
+            if ($dateOfEntry->lt($latestTxnDate)) {
+                throw new \Exception("Transaksi ditolak: tanggal transaksi ({$dateOfEntry->toDateString()}) tidak boleh lebih kecil dari tanggal transaksi terakhir ({$latestTxnDate->toDateString()}).");
+            }
         }
 
-        // ==========================
-        // 🔍 VALIDASI 2: CEK SALDO UNTUK TRANSAKSI KELUAR
-        // ==========================
+        // ================
+        // Jika KELUAR -> ambil batches dengan lock lalu cek total stok dari hasil lock (menghindari race)
+        // ================
         if ($type === 'KELUAR') {
-            $totalStock = StockProduct::where('product_id', $product_id)
-                ->where('location_id', $location_id)
-                ->sum('stock');
+            // ambil semua batch yang masih punya stok, lock untuk update
+            $batches = StockProduct::where('product_id', $productId)
+                ->where('location_id', $locationId)
+                ->where('stock', '>', 0)
+                ->orderBy('date_of_entry', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            $totalStock = $batches->sum('stock');
 
             if ($totalStock < $qty) {
                 throw new \Exception("Transaksi ditolak: saldo barang tidak mencukupi. (Stok saat ini: {$totalStock})");
             }
         }
 
-        // ==========================
-        // 🧾 BUAT TRANSACTION HISTORY
-        // ==========================
+        // ================
+        // SIMPAN TRANSACTION HISTORY (audit log)
+        // ================
         $transaction = new TransactionHistory();
         $transaction->batch = $validated['batch'];
         $transaction->date = now();
-        $transaction->date_of_transaction = $date_of_entry;
-        $transaction->location_id = $location_id;
+        $transaction->date_of_transaction = $dateOfEntry->toDateString();
+        $transaction->location_id = $locationId;
         $transaction->qty = $qty;
-        $transaction->product_id = $product_id;
+        $transaction->product_id = $productId;
         $transaction->created_by = $userId;
         $transaction->created_at = now();
+        
         $transaction->save();
 
-        // ==========================
-        // ⚙️ PROSES FIFO
-        // ==========================
+        // ================
+        // PROSES FIFO (MASUK / KELUAR)
+        // ================
         if ($type === 'MASUK') {
-            // Tambah atau update stok untuk tanggal sama
-            $existingStock = StockProduct::where('product_id', $product_id)
-                ->where('location_id', $location_id)
-                ->whereDate('date_of_entry', $date_of_entry)
+            // jika ada baris stock_products dengan tanggal yang sama, gabung/menambah stok
+            $existing = StockProduct::where('product_id', $productId)
+                ->where('location_id', $locationId)
+                ->whereDate('date_of_entry', $dateOfEntry->toDateString())
+                ->lockForUpdate()    // lock row jika ada agar aman saat concurrency
                 ->first();
 
-            if ($existingStock) {
-                $existingStock->stock += $qty;
-                $existingStock->updated_at = now();
-                $existingStock->updated_by = $userId;
-                $existingStock->save();
+            // dd($existing);
+
+            if ($existing) {
+                $existing->stock += $qty;
+                $existing->updated_by = $userId;
+                $existing->save();
             } else {
-                $newStock = new StockProduct();
-                $newStock->product_id = $product_id;
-                $newStock->location_id = $location_id;
-                $newStock->stock = $qty;
-                $newStock->date_of_entry = $date_of_entry;
-                $newStock->created_by = $userId;
-                $newStock->created_at = now();
-                $newStock->save();
+                // buat entry baru
+                $new = new StockProduct();
+                $new->product_id = $productId;
+                $new->location_id = $locationId;
+                $new->stock = $qty;
+                $new->date_of_entry = $dateOfEntry->toDateString();
+                $new->created_by = $userId;
+                $new->save();
             }
-
-        } else { // === KELUAR ===
-            $qtyToDeduct = $qty;
-
-            $batches = StockProduct::where('product_id', $product_id)
-                ->where('location_id', $location_id)
+        } else { // KELUAR (FIFO)
+            // jika belum pernah mengambil $batches sebelumnya (misal karena kondisi KELUAR validasi dilakukan dulu),
+            // dapatkan batches dan lock lagi (sudah di-lock di atas jika kita ambil sebelumnya)
+            $batches = isset($batches) ? $batches : StockProduct::where('product_id', $productId)
+                ->where('location_id', $locationId)
                 ->where('stock', '>', 0)
                 ->orderBy('date_of_entry', 'asc')
                 ->lockForUpdate()
                 ->get();
 
+            $qtyToDeduct = $qty;
             foreach ($batches as $batch) {
                 if ($qtyToDeduct <= 0) break;
 
@@ -203,7 +222,6 @@ public function store(Request $request)
                 $deduct = min($available, $qtyToDeduct);
 
                 $batch->stock -= $deduct;
-                $batch->updated_at = now();
                 $batch->updated_by = $userId;
                 $batch->save();
 
@@ -211,18 +229,28 @@ public function store(Request $request)
             }
 
             if ($qtyToDeduct > 0) {
-                throw new \Exception("Stok tidak mencukupi untuk produk ini.");
+                // seharusnya tidak terjadi karena kita sudah cek totalStock di atas
+                throw new \Exception("Transaksi ditolak: terjadi kesalahan stok saat pemrosesan FIFO.");
             }
         }
+        // dd('debug');
 
         DB::commit();
-        return redirect()->back()->with('success', 'Transaksi berhasil disimpan.');
 
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi berhasil disimpan.',
+        ], 200);
     } catch (\Exception $e) {
         DB::rollBack();
-        return redirect()->back()->withInput()->withErrors(['error' => $e->getMessage()]);
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+        ], 422);
     }
 }
+
 
     /**
      * Display the specified resource.

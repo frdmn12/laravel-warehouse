@@ -28,7 +28,7 @@
                 <div>
                     {{-- Batch --}}
                     <label for="batch" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
-                    <input type="text" id="batch" name="batch" class="w-full text-sm border border-gray-300 rounded-md p-2" placeholder="Batch identifier" required>
+                    <input type="text" id="batch" name="batch" class="w-full text-sm border border-gray-300 rounded-md p-2" placeholder="Batch identifier" required readonly >
                 </div>
 
                 <div>
@@ -86,6 +86,10 @@
             $('#form-data').on('submit', function (e) {
                 e.preventDefault();
 
+                // make button to disabled to prevent multiple submits
+                $('button', this).attr('disabled', 'disabled');
+
+
                 $.ajax({
                     type: 'POST',
                     url: '{{ route("stock-products.store") }}',
@@ -101,7 +105,7 @@
                         location_id: $('#location_id').val() || null,
                     },
                     success: function (response) {
-                        alert('Stock product created successfully!');
+                        alert('New transaction created successfully!');
                         window.location.href = '{{ route("stock-products.index") }}';
                     },
                     error: function (xhr) {
@@ -112,6 +116,10 @@
                         alert(msg);
                     }
                 });
+
+                // re-enable the button
+                $('button', this).removeAttr('disabled');
+
             });
         });
 
