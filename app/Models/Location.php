@@ -10,7 +10,7 @@ class Location extends Model
     protected $table   = 'location';
     public $timestamps = false;
 
-    public $fillable = [
+    protected $fillable = [
         'name',
         'created_at',
         'created_by',
