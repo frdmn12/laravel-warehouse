@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\StockProductController;
 use App\Http\Controllers\Api\TransactionHistoryController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
 
     Route::apiResource('products', ProductController::class);
+    Route::apiResource('stock-products', StockProductController::class)->only(['index', 'store', 'show']);
     Route::get('/locations', [LocationController::class, 'index']);
 
     Route::get('/transaction-history', [TransactionHistoryController::class, 'index']);
