@@ -1,0 +1,8 @@
+# public/index.php is Laravel's traditional front controller, used by
+# `php artisan serve` and classic Apache/Nginx hosting. On Vercel every
+# request is routed through api/index.php instead (see vercel.json's
+# catch-all rewrite) — public/index.php must never be reachable as a
+# static file here, since Vercel would serve its raw source/output
+# instead of executing it through PHP.
+public/index.php
+public/.htaccess
