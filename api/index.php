@@ -51,9 +51,27 @@ foreach ([
     }
 }
 
-/** @var Application $app */
-$app = require __DIR__ . '/../bootstrap/app.php';
+try {
+    /** @var Application $app */
+    $app = require __DIR__ . '/../bootstrap/app.php';
 
-$app->useStoragePath($storagePath);
+    $app->useStoragePath($storagePath);
 
-$app->handleRequest(Request::capture());
+    $app->handleRequest(Request::capture());
+} catch (\Throwable $e) {
+    // A failure this early (bootstrapping the app / registering service
+    // providers) can happen before Laravel's own exception handler and
+    // the "view" binding it needs to render an error page exist yet —
+    // trying to let Laravel handle it just produces a second, unrelated
+    // BindingResolutionException that buries the real cause. Log a
+    // compact one-line summary of the whole chain instead, since the
+    // full multi-KB stack trace this exception carries gets truncated
+    // by the log pipeline before the actual class/message at its root
+    // ever shows up.
+    for ($t = $e; $t !== null; $t = $t->getPrevious()) {
+        error_log(sprintf('[boot] %s: %s in %s:%d', $t::class, $t->getMessage(), $t->getFile(), $t->getLine()));
+    }
+
+    http_response_code(500);
+    exit;
+}
