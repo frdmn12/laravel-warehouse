@@ -2,11 +2,15 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockProductController;
 use App\Http\Controllers\Api\TransactionHistoryController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/health', [HealthController::class, 'index']);
+Route::get('/health/db', [HealthController::class, 'db']);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
