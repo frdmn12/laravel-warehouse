@@ -51,16 +51,16 @@ class TransactionHistoryController extends Controller
 
         $like = $prefix . '-' . $datePart . '-%';
 
-        $lastBatch = TransactionHistory::where('batch', 'like', $like)
-            ->orderByRaw("CAST(SUBSTR(batch, -3) AS INTEGER) DESC")
-            ->first();
+        $lastIncrement = TransactionHistory::where('batch', 'like', $like)
+            ->pluck('batch')
+            ->map(function ($batch) {
+                preg_match('/-(\d{3})$/', $batch, $matches);
 
-        if ($lastBatch && preg_match('/-(\d{3})$/', $lastBatch->batch, $matches)) {
-            $lastIncrement = (int) $matches[1];
-            $newIncrement = str_pad($lastIncrement + 1, 3, '0', STR_PAD_LEFT);
-        } else {
-            $newIncrement = '001';
-        }
+                return $matches ? (int) $matches[1] : 0;
+            })
+            ->max();
+
+        $newIncrement = str_pad(($lastIncrement ?? 0) + 1, 3, '0', STR_PAD_LEFT);
 
         $newBatch = $prefix . '-' . $datePart . '-' . $newIncrement;
 
