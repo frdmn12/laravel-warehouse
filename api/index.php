@@ -26,7 +26,7 @@ require __DIR__ . '/../vendor/autoload.php';
 
 /*
 |--------------------------------------------------------------------------
-| Writable storage on Vercel
+| Writable storage and bootstrap cache on Vercel
 |--------------------------------------------------------------------------
 |
 | The deployed bundle's filesystem is read-only at runtime, except for
@@ -35,8 +35,20 @@ require __DIR__ . '/../vendor/autoload.php';
 | start re-creates a scratch storage tree under /tmp before the app
 | boots. This directory is ephemeral and not shared across invocations.
 |
+| bootstrap/cache needs the same treatment: it's gitignored, so it never
+| ships in the deployed bundle, and Laravel's PackageManifest regenerates
+| bootstrap/cache/packages.php on demand the first time it's needed
+| (during Illuminate\Foundation\Bootstrap\RegisterProviders, which runs
+| lazily on the first request handled — not during bootstrap/app.php's
+| own Application::configure()->create() chain). On a read-only
+| filesystem that write throws immediately, and since it happens before
+| any service provider (including the "view" one) has registered, every
+| single request 500s with a confusing "Target class [view] does not
+| exist" instead of the real error.
+|
 */
 $storagePath = '/tmp/storage';
+$bootstrapPath = '/tmp/bootstrap';
 
 foreach ([
     $storagePath,
@@ -45,6 +57,7 @@ foreach ([
     $storagePath . '/framework/testing',
     $storagePath . '/framework/views',
     $storagePath . '/logs',
+    $bootstrapPath . '/cache',
 ] as $path) {
     if (! is_dir($path)) {
         mkdir($path, 0755, true);
@@ -56,6 +69,7 @@ try {
     $app = require __DIR__ . '/../bootstrap/app.php';
 
     $app->useStoragePath($storagePath);
+    $app->useBootstrapPath($bootstrapPath);
 
     $app->handleRequest(Request::capture());
 } catch (\Throwable $e) {
@@ -70,30 +84,6 @@ try {
     // ever shows up.
     for ($t = $e; $t !== null; $t = $t->getPrevious()) {
         error_log(sprintf('[boot] %s: %s in %s:%d', $t::class, $t->getMessage(), $t->getFile(), $t->getLine()));
-    }
-
-    // Temporary diagnostic: this specific failure (BindingResolutionException
-    // for "view") only happens on Vercel, not with a local `composer install`,
-    // and only makes sense if config('app.providers') ends up empty — which
-    // would happen if the framework's own bundled config/app.php (relied on
-    // to supply the full ServiceProvider::defaultProviders() list, since our
-    // config/app.php has no 'providers' key of its own) isn't actually present
-    // in the deployed bundle. Confirm or rule that out directly.
-    if (isset($app)) {
-        $frameworkConfigDir = __DIR__ . '/../vendor/laravel/framework/config';
-        error_log(sprintf(
-            '[diag] frameworkConfigDir=%s exists=%s app.php_exists=%s',
-            $frameworkConfigDir,
-            is_dir($frameworkConfigDir) ? 'yes' : 'no',
-            file_exists($frameworkConfigDir . '/app.php') ? 'yes' : 'no',
-        ));
-
-        try {
-            $providers = $app->make('config')->get('app.providers');
-            error_log(sprintf('[diag] app.providers count=%d', is_countable($providers) ? count($providers) : -1));
-        } catch (\Throwable $diagException) {
-            error_log('[diag] could not read app.providers: ' . $diagException->getMessage());
-        }
     }
 
     http_response_code(500);
