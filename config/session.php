@@ -18,7 +18,16 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'database'),
+    // env('SESSION_DRIVER', 'database') would NOT fall back to the default
+    // if the Vercel project's SESSION_DRIVER variable exists but is set to
+    // an empty string (a real footgun: env() only substitutes its default
+    // for a var that's entirely unset, and an empty string is a distinct,
+    // valid-looking value) — Str::studly('') collapses the driver-method
+    // name Manager::createDriver() builds down to "createDriver" itself,
+    // colliding with that real method and calling it with 0 arguments,
+    // which throws ArgumentCountError on every single request instead of
+    // a clear "driver not supported" error.
+    'driver' => env('SESSION_DRIVER') ?: 'database',
 
     /*
     |--------------------------------------------------------------------------
