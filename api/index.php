@@ -14,6 +14,14 @@ define('LARAVEL_START', microtime(true));
 // change/redeploy needed to toggle it.
 ini_set('display_errors', getenv('APP_DEBUG') === 'true' ? '1' : '0');
 
+// Always send PHP-level errors (including fatals before Laravel's own
+// exception handler is registered) to stderr, unconditionally — this is
+// distinct from display_errors above: it's what makes those errors show
+// up in `vercel logs` / the Vercel runtime log viewer even when
+// APP_DEBUG is off and nothing is shown in the response body.
+ini_set('log_errors', '1');
+ini_set('error_log', 'php://stderr');
+
 require __DIR__ . '/../vendor/autoload.php';
 
 /*
