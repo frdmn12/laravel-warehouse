@@ -7,8 +7,12 @@ define('LARAVEL_START', microtime(true));
 
 // Never leak raw PHP notices/warnings/deprecations into the response body —
 // Laravel's own logging (LOG_CHANNEL=stderr) is the right place for these,
-// not the page a visitor sees.
-ini_set('display_errors', '0');
+// not the page a visitor sees. Tied to APP_DEBUG so a fatal error that
+// happens before Laravel's own exception handler is registered (e.g.
+// during these early requires) can still be seen by temporarily setting
+// APP_DEBUG=true in the Vercel project's environment variables — no code
+// change/redeploy needed to toggle it.
+ini_set('display_errors', getenv('APP_DEBUG') === 'true' ? '1' : '0');
 
 require __DIR__ . '/../vendor/autoload.php';
 
