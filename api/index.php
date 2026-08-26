@@ -5,6 +5,11 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+// Never leak raw PHP notices/warnings/deprecations into the response body —
+// Laravel's own logging (LOG_CHANNEL=stderr) is the right place for these,
+// not the page a visitor sees.
+ini_set('display_errors', '0');
+
 require __DIR__ . '/../vendor/autoload.php';
 
 /*
