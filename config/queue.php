@@ -13,7 +13,10 @@ return [
     |
     */
 
-    'default' => env('QUEUE_CONNECTION', 'database'),
+    // See config/session.php for why ?: is used instead of env()'s own
+    // default parameter — an env var that's set but empty (as several are
+    // on this app's Vercel project) bypasses env()'s default entirely.
+    'default' => env('QUEUE_CONNECTION') ?: 'database',
 
     /*
     |--------------------------------------------------------------------------
