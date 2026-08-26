@@ -86,6 +86,12 @@ try {
         error_log(sprintf('[boot] %s: %s in %s:%d', $t::class, $t->getMessage(), $t->getFile(), $t->getLine()));
     }
 
-    http_response_code(500);
+    // MissingAppKeyException (among others) can surface AFTER Laravel's own
+    // Handler already sent a response — e.g. during $kernel->terminate() —
+    // in which case headers are already sent and this would just add a
+    // second, unrelated "headers already sent" ErrorException to the log.
+    if (! headers_sent()) {
+        http_response_code(500);
+    }
     exit;
 }
