@@ -72,6 +72,30 @@ try {
         error_log(sprintf('[boot] %s: %s in %s:%d', $t::class, $t->getMessage(), $t->getFile(), $t->getLine()));
     }
 
+    // Temporary diagnostic: this specific failure (BindingResolutionException
+    // for "view") only happens on Vercel, not with a local `composer install`,
+    // and only makes sense if config('app.providers') ends up empty — which
+    // would happen if the framework's own bundled config/app.php (relied on
+    // to supply the full ServiceProvider::defaultProviders() list, since our
+    // config/app.php has no 'providers' key of its own) isn't actually present
+    // in the deployed bundle. Confirm or rule that out directly.
+    if (isset($app)) {
+        $frameworkConfigDir = __DIR__ . '/../vendor/laravel/framework/config';
+        error_log(sprintf(
+            '[diag] frameworkConfigDir=%s exists=%s app.php_exists=%s',
+            $frameworkConfigDir,
+            is_dir($frameworkConfigDir) ? 'yes' : 'no',
+            file_exists($frameworkConfigDir . '/app.php') ? 'yes' : 'no',
+        ));
+
+        try {
+            $providers = $app->make('config')->get('app.providers');
+            error_log(sprintf('[diag] app.providers count=%d', is_countable($providers) ? count($providers) : -1));
+        } catch (\Throwable $diagException) {
+            error_log('[diag] could not read app.providers: ' . $diagException->getMessage());
+        }
+    }
+
     http_response_code(500);
     exit;
 }
