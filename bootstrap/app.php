@@ -25,7 +25,16 @@ $builder = $builder->withMiddleware(function (Middleware $middleware): void {
 error_log('[diag] withMiddleware() ok');
 
 $builder = $builder->withExceptions(function (Exceptions $exceptions): void {
-    //
+    // Temporary diagnostic: Handler::render() throws a secondary
+    // BindingResolutionException for "view" while trying to build an
+    // HTML error page, which reaches api/index.php's own catch block
+    // with no "previous" exception attached — the real, original
+    // exception Laravel caught is otherwise lost. reportable() runs
+    // before render() ever gets a chance to fail, so it's the one place
+    // guaranteed to see it.
+    $exceptions->reportable(function (\Throwable $e): void {
+        error_log(sprintf('[report] %s: %s in %s:%d', $e::class, $e->getMessage(), $e->getFile(), $e->getLine()));
+    });
 });
 error_log('[diag] withExceptions() ok');
 
