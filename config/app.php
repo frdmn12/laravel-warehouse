@@ -119,8 +119,15 @@ return [
     */
 
     'maintenance' => [
-        'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
-        'store' => env('APP_MAINTENANCE_STORE', 'database'),
+        // See config/session.php for why ?: is used instead of env()'s own
+        // default parameter — an env var that's set but empty (as several
+        // are on this app's Vercel project) bypasses env()'s default
+        // entirely. MaintenanceModeManager is checked on every request
+        // (Laravel's first HTTP kernel bootstrapper), so an empty
+        // APP_MAINTENANCE_DRIVER breaks the whole app the same way an
+        // empty SESSION_DRIVER did.
+        'driver' => env('APP_MAINTENANCE_DRIVER') ?: 'file',
+        'store' => env('APP_MAINTENANCE_STORE') ?: 'database',
     ],
 
 ];
